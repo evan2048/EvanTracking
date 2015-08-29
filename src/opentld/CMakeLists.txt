@@ -30,12 +30,12 @@ target_link_libraries(main libopentld cvblobs config++ ${OpenCV_LIBS})
 
 #-------------------------------------------------------------------------------
 # opentld
-add_executable(opentld
+add_executable(EvanTracking
     OpenTLD.cpp)
 
-target_link_libraries(opentld main libopentld cvblobs config++ ${OpenCV_LIBS})
+target_link_libraries(EvanTracking main libopentld cvblobs config++ ${OpenCV_LIBS})
 
-install(TARGETS opentld DESTINATION bin)
+install(TARGETS EvanTracking DESTINATION bin)
 
 #-------------------------------------------------------------------------------
 # qopentld

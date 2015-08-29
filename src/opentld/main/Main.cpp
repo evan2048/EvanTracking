@@ -36,7 +36,7 @@ using namespace cv;
 
 void Main::doWork()
 {
-	Trajectory trajectory;
+    Trajectory trajectory;
     IplImage *img = imAcqGetImg(imAcq);
     Mat grey(img->height, img->width, CV_8UC1);
     cvtColor(cvarrToMat(img), grey, CV_BGR2GRAY);
@@ -45,10 +45,10 @@ void Main::doWork()
     tld->detectorCascade->imgHeight = grey.rows;
     tld->detectorCascade->imgWidthStep = grey.step;
 
-	if(showTrajectory)
-	{
-		trajectory.init(trajectoryLength);
-	}
+    if(showTrajectory)
+    {
+        trajectory.init(trajectoryLength);
+    }
 
     if(selectManually)
     {
@@ -134,6 +134,8 @@ void Main::doWork()
             if(tld->currBB != NULL)
             {
                 fprintf(resultsFile, "%d %.2d %.2d %.2d %.2d %f\n", imAcq->currentFrame - 1, tld->currBB->x, tld->currBB->y, tld->currBB->width, tld->currBB->height, tld->currConf);
+                //print currBB
+                printf("Target at %.2d %.2d %.2d %.2d\n",tld->currBB->x, tld->currBB->y, tld->currBB->width, tld->currBB->height);
             }
             else
             {
@@ -169,7 +171,7 @@ void Main::doWork()
             if(tld->currBB != NULL)
             {
                 CvScalar rectangleColor = (confident) ? blue : yellow;
-                cvRectangle(img, tld->currBB->tl(), tld->currBB->br(), rectangleColor, 8, 8, 0);
+                cvRectangle(img, tld->currBB->tl(), tld->currBB->br(), rectangleColor, 3, 3, 0);
 
 				if(showTrajectory)
 				{
