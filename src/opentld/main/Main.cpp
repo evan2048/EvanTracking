@@ -171,7 +171,7 @@ void Main::doWork()
             if(tld->currBB != NULL)
             {
                 CvScalar rectangleColor = (confident) ? blue : yellow;
-                cvRectangle(img, tld->currBB->tl(), tld->currBB->br(), rectangleColor, 3, 3, 0);
+                cvRectangle(img, tld->currBB->tl(), tld->currBB->br(), rectangleColor, 2, 2, 0);
 
 				if(showTrajectory)
 				{
