@@ -12,7 +12,7 @@ using namespace std;
 //using namespace cv;
 
 const string mainWindowString="EvanTracking";
-int waitKeyDelay = 25;
+int waitKeyDelay = 10;
 bool isSelectingTarget = false;
 bool isMouseLeftButtonDown = false;
 bool isTracking = false;
@@ -64,7 +64,17 @@ void mouseHandler(int event, int x, int y, int flags, void* param)
 
 int main(int argc, char** argv)
 {
-    cv::VideoCapture cap(0);
+	cv::VideoCapture cap;
+	//read param
+	if(argc<2)
+	{
+		printf("error:param error\n");
+		return -1;
+	}
+	else if(argc==2)
+	{
+		cap.open(argv[1]);
+	}
     cv::namedWindow(mainWindowString,cv::WINDOW_AUTOSIZE);
     cv::setMouseCallback(mainWindowString, mouseHandler, 0);
     if(!cap.isOpened())
@@ -74,12 +84,6 @@ int main(int argc, char** argv)
     }
     while(1)
     {
-        cap >> frame;
-        if(frame.empty())
-        {
-        	printf("frame empty\n");
-        	break;
-        }
         //read key
         char key = cv::waitKey(waitKeyDelay);
         if(key == 's' && isTracking == false)
@@ -102,6 +106,12 @@ int main(int argc, char** argv)
         //show preview
         if(isSelectingTarget == false)
         {
+        	cap >> frame;
+        	if(frame.empty())
+        	{
+        		printf("frame empty\n");
+        		break;
+        	}
         	if(isTracking == true)
         	{
         		dlib::cv_image<bgr_pixel> dlibFrame(frame);
@@ -110,6 +120,7 @@ int main(int argc, char** argv)
         	    targetCurrentStartPoint = cv::Point(dlibTargetPosition.left(), dlibTargetPosition.top());
         	    targetCurrentEndPoint = cv::Point(dlibTargetPosition.right(), dlibTargetPosition.bottom());
         	    cv::rectangle(frame, targetCurrentStartPoint, targetCurrentEndPoint, CV_RGB(0, 0, 255), 2, 8, 0);
+        	    printf("target at:%d %d %d %d\n", targetCurrentStartPoint.x, targetCurrentStartPoint.y, targetCurrentEndPoint.x - targetCurrentStartPoint.x, targetCurrentEndPoint.y - targetCurrentStartPoint.y);
         	}
         	cv::imshow(mainWindowString, frame);
         }
