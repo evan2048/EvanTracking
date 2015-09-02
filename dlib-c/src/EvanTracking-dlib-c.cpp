@@ -12,39 +12,53 @@ using namespace std;
 //using namespace cv;
 
 const string mainWindowString="EvanTracking";
-cv::Mat frame;  //video frame
-cv::Mat targetSelectFrame;
-int waitKeyDelay = 10;
-bool isEnableSelecteTarget = false;
+int waitKeyDelay = 25;
 bool isSelectingTarget = false;
-cv::Point targetStartPoint;
-cv::Point targetEndPoint;
+bool isMouseLeftButtonDown = false;
+bool isTracking = false;
+cv::Mat frame;  //video frame
+cv::Mat targetFrame;
+cv::Rect targetRect;
+cv::Mat targetMat;
+cv::Point targetInitStartPoint;
+cv::Point targetInitEndPoint;
+cv::Point targetCurrentStartPoint;
+cv::Point targetCurrentEndPoint;
+correlation_tracker tracker;
 
 void mouseHandler(int event, int x, int y, int flags, void* param)
 {
-	//if not select target mode,just return
-	if(isEnableSelecteTarget == false)
+	//if not in select target mode,just ignore and return
+	if(isSelectingTarget == false)
 	{
 		return;
 	}
 	//enter select target mode
-	if(event == CV_EVENT_LBUTTONDOWN && isSelectingTarget == false)
+	if(event == CV_EVENT_LBUTTONDOWN && isMouseLeftButtonDown == false)
 	{
-		isSelectingTarget = true;
-		targetStartPoint = cv::Point(x, y);
+		isMouseLeftButtonDown = true;
+		targetInitStartPoint = cv::Point(x, y);
 	}
-	else if(event == CV_EVENT_MOUSEMOVE && isSelectingTarget == true)
+	else if(event == CV_EVENT_MOUSEMOVE && isMouseLeftButtonDown == true)
 	{
-		targetEndPoint = cv::Point(x, y);
-		cv::Mat tempFrame = targetSelectFrame.clone();
-		cv::rectangle(tempFrame, targetStartPoint, targetEndPoint, CV_RGB(255, 0, 0), 1, 8, 0);
+		targetInitEndPoint = cv::Point(x, y);
+		cv::Mat tempFrame = targetFrame.clone();
+		cv::rectangle(tempFrame, targetInitStartPoint, targetInitEndPoint, CV_RGB(255, 0, 0), 1, 8, 0);
 		cv::imshow(mainWindowString, tempFrame);
 	}
-	else if(event == CV_EVENT_LBUTTONUP && isSelectingTarget == true)
+	else if(event == CV_EVENT_LBUTTONUP && isMouseLeftButtonDown == true)
 	{
+		isMouseLeftButtonDown = false;
 		isSelectingTarget = false;
-		isEnableSelecteTarget = false;
-		targetEndPoint = cv::Point(x, y);
+		targetInitEndPoint = cv::Point(x, y);
+		targetRect = cv::Rect(targetInitStartPoint, targetInitEndPoint);
+        targetMat = targetFrame(targetRect).clone();
+        cv::namedWindow("selectedTarget",cv::WINDOW_AUTOSIZE);
+        cv::imshow("selectedTarget",targetMat);
+        //start tracking
+        dlib::cv_image<bgr_pixel> dlibTarget(targetFrame);
+        tracker.start_track(dlibTarget, centered_rect(point(targetRect.x + targetRect.width/2, targetRect.y + targetRect.height/2), targetRect.width, targetRect.height));
+        isTracking = true;
 	}
 }
 
@@ -58,38 +72,48 @@ int main(int argc, char** argv)
         printf("error:VideoCapture open failed\n");
         return -1;
     }
-    //cv::Mat first;
-    //cap >> first;
-    //dlib::cv_image<bgr_pixel> cfirst(first);
-    //correlation_tracker tracker;
-    //tracker.start_track(cfirst, centered_rect(point(93,110), 38, 86));
     while(1)
     {
         cap >> frame;
         if(frame.empty())
         {
+        	printf("frame empty\n");
         	break;
         }
-        //dlib::cv_image<bgr_pixel> dFrame(frame);
-        //tracker.update(dFrame);
-        //imgWindow.clear_overlay();
-        //imgWindow.add_overlay(tracker.get_position());
-        if(cv::waitKey(waitKeyDelay) == 's')
+        //read key
+        char key = cv::waitKey(waitKeyDelay);
+        if(key == 's' && isTracking == false)
         {
-        	isEnableSelecteTarget = true;
-        	targetSelectFrame = frame.clone();
+        	isSelectingTarget = true;
+        	targetFrame = frame.clone();
+        	cv::imshow(mainWindowString, targetFrame);
         }
-        else if(cv::waitKey(waitKeyDelay) == 'q')
+        else if(key == 'r' && isTracking == true)
+        {
+        	isTracking = false;
+        	dlib::cv_image<bgr_pixel> dlibTarget(targetFrame);
+        	tracker.start_track(dlibTarget, centered_rect(point(targetRect.x + targetRect.width/2, targetRect.y + targetRect.height/2), targetRect.width, targetRect.height));
+            isTracking = true;
+        }
+        else if(key == 'q')
         {
         	break;
         }
-
-        if(isEnableSelecteTarget==false)
+        //show preview
+        if(isSelectingTarget == false)
         {
-        	imshow(mainWindowString, frame);
+        	if(isTracking == true)
+        	{
+        		dlib::cv_image<bgr_pixel> dlibFrame(frame);
+        	    tracker.update(dlibFrame);
+        	    drectangle dlibTargetPosition = tracker.get_position();
+        	    targetCurrentStartPoint = cv::Point(dlibTargetPosition.left(), dlibTargetPosition.top());
+        	    targetCurrentEndPoint = cv::Point(dlibTargetPosition.right(), dlibTargetPosition.bottom());
+        	    cv::rectangle(frame, targetCurrentStartPoint, targetCurrentEndPoint, CV_RGB(0, 0, 255), 2, 8, 0);
+        	}
+        	cv::imshow(mainWindowString, frame);
         }
     }
     cap.release();
-    cv::destroyWindow(mainWindowString);
+    cv::destroyAllWindows();
 }
-
