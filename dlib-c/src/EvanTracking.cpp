@@ -31,6 +31,16 @@ cv::Point targetCurrentEndPoint;
 cv::Point reSelectTartgetCenterPoint;
 correlation_tracker tracker;
 
+void swapTargetInitPosition()
+{
+    if((targetInitStartPoint.x > targetInitEndPoint.x) || (targetInitStartPoint.y > targetInitEndPoint.y))
+    {
+        cv::Point temp = targetInitStartPoint;
+        targetInitStartPoint = targetInitEndPoint;
+        targetInitEndPoint = temp;
+    } 
+}
+
 void mouseHandler(int event, int x, int y, int flags, void* param)
 {
     //select target mode
@@ -53,6 +63,7 @@ void mouseHandler(int event, int x, int y, int flags, void* param)
             isMouseLeftButtonDown = false;
             isSelectingTarget = false;
             targetInitEndPoint = cv::Point(x, y);
+            swapTargetInitPosition();  //check position
             targetRect = cv::Rect(targetInitStartPoint, targetInitEndPoint);
             targetMat = targetFrame(targetRect).clone();
             cv::namedWindow("selectedTarget", cv::WINDOW_AUTOSIZE);
