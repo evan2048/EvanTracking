@@ -1,5 +1,7 @@
-//note:use 4 space instead tab
-
+/*
+*2015.9.3 use 4 space instead tab
+*         add reSelect target feature
+*/
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
@@ -17,6 +19,7 @@ int waitKeyDelay = 10;
 bool isSelectingTarget = false;
 bool isMouseLeftButtonDown = false;
 bool isTracking = false;
+bool isReSelectingTarget = false;
 cv::Mat frame;  //video frame
 cv::Mat targetFrame;
 cv::Rect targetRect;
@@ -25,41 +28,61 @@ cv::Point targetInitStartPoint;
 cv::Point targetInitEndPoint;
 cv::Point targetCurrentStartPoint;
 cv::Point targetCurrentEndPoint;
+cv::Point reSelectTartgetCenterPoint;
 correlation_tracker tracker;
 
 void mouseHandler(int event, int x, int y, int flags, void* param)
 {
-    //if not in select target mode,just ignore and return
-    if(isSelectingTarget == false)
+    //select target mode
+    if(isSelectingTarget == true)
     {
-        return;
+        if(event == CV_EVENT_LBUTTONDOWN && isMouseLeftButtonDown == false)
+        {
+            isMouseLeftButtonDown = true;
+            targetInitStartPoint = cv::Point(x, y);
+        }
+        else if(event == CV_EVENT_MOUSEMOVE && isMouseLeftButtonDown == true)
+        {
+            targetInitEndPoint = cv::Point(x, y);
+            cv::Mat tempFrame = targetFrame.clone();
+            cv::rectangle(tempFrame, targetInitStartPoint, targetInitEndPoint, CV_RGB(255, 0, 0), 1, 8, 0);
+            cv::imshow(mainWindowString, tempFrame);
+        }
+        else if(event == CV_EVENT_LBUTTONUP && isMouseLeftButtonDown == true)
+        {
+            isMouseLeftButtonDown = false;
+            isSelectingTarget = false;
+            targetInitEndPoint = cv::Point(x, y);
+            targetRect = cv::Rect(targetInitStartPoint, targetInitEndPoint);
+            targetMat = targetFrame(targetRect).clone();
+            cv::namedWindow("selectedTarget", cv::WINDOW_AUTOSIZE);
+            cv::moveWindow("selectedTarget", 100 + targetFrame.cols, 60);
+            cv::imshow("selectedTarget", targetMat);
+            //start tracking
+            dlib::cv_image<bgr_pixel> dlibTarget(targetFrame);
+            tracker.start_track(dlibTarget, centered_rect(point(targetRect.x + targetRect.width/2, targetRect.y + targetRect.height/2), targetRect.width, targetRect.height));
+            isTracking = true;
+        }
     }
-    //enter select target mode
-    if(event == CV_EVENT_LBUTTONDOWN && isMouseLeftButtonDown == false)
+    //reSelect target mode
+    else if(isReSelectingTarget == true)
     {
-        isMouseLeftButtonDown = true;
-        targetInitStartPoint = cv::Point(x, y);
-    }
-    else if(event == CV_EVENT_MOUSEMOVE && isMouseLeftButtonDown == true)
-    {
-        targetInitEndPoint = cv::Point(x, y);
-        cv::Mat tempFrame = targetFrame.clone();
-        cv::rectangle(tempFrame, targetInitStartPoint, targetInitEndPoint, CV_RGB(255, 0, 0), 1, 8, 0);
-        cv::imshow(mainWindowString, tempFrame);
-    }
-    else if(event == CV_EVENT_LBUTTONUP && isMouseLeftButtonDown == true)
-    {
-        isMouseLeftButtonDown = false;
-        isSelectingTarget = false;
-        targetInitEndPoint = cv::Point(x, y);
-        targetRect = cv::Rect(targetInitStartPoint, targetInitEndPoint);
-        targetMat = targetFrame(targetRect).clone();
-        cv::namedWindow("selectedTarget",cv::WINDOW_AUTOSIZE);
-        cv::imshow("selectedTarget",targetMat);
-        //start tracking
-        dlib::cv_image<bgr_pixel> dlibTarget(targetFrame);
-        tracker.start_track(dlibTarget, centered_rect(point(targetRect.x + targetRect.width/2, targetRect.y + targetRect.height/2), targetRect.width, targetRect.height));
-        isTracking = true;
+        if(event == CV_EVENT_LBUTTONDOWN && isMouseLeftButtonDown == false)
+        {
+            isMouseLeftButtonDown = true;
+            reSelectTartgetCenterPoint = cv::Point(x, y);
+        }
+        else if(event == CV_EVENT_MOUSEMOVE && isMouseLeftButtonDown == true)
+        {
+
+        }
+        else if(event == CV_EVENT_LBUTTONUP && isMouseLeftButtonDown == true)
+        {
+            isMouseLeftButtonDown = false;
+            //isReSelectingTarget = false;
+            dlib::cv_image<bgr_pixel> dlibTarget(frame);
+            tracker.start_track(dlibTarget, centered_rect(point(reSelectTartgetCenterPoint.x, reSelectTartgetCenterPoint.y), targetRect.width, targetRect.height));
+        }
     }
 }
 
@@ -76,7 +99,8 @@ int main(int argc, char** argv)
     {
         cap.open(argv[1]);
     }
-    cv::namedWindow(mainWindowString,cv::WINDOW_AUTOSIZE);
+    cv::namedWindow(mainWindowString, cv::WINDOW_AUTOSIZE);
+    cv::moveWindow(mainWindowString, 100, 60);
     cv::setMouseCallback(mainWindowString, mouseHandler, 0);
     if(!cap.isOpened())
     {
@@ -95,10 +119,7 @@ int main(int argc, char** argv)
         }
         else if(key == 'r' && isTracking == true)
         {
-            isTracking = false;
-            dlib::cv_image<bgr_pixel> dlibTarget(targetFrame);
-            tracker.start_track(dlibTarget, centered_rect(point(targetRect.x + targetRect.width/2, targetRect.y + targetRect.height/2), targetRect.width, targetRect.height));
-            isTracking = true;
+            isReSelectingTarget = true;
         }
         else if(key == 'q')
         {
@@ -110,7 +131,7 @@ int main(int argc, char** argv)
             cap >> frame;
             if(frame.empty())
             {
-                printf("frame empty\n");
+                printf("info:frame empty\n");
                 break;
             }
             if(isTracking == true)
