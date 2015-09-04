@@ -1,14 +1,19 @@
 /*
 *2015.9.3 use 4 space instead tab
 *         add reSelect target feature
+*2015.9.4 add ros support
 */
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
 #include <dlib/dir_nav.h>
-
+//opencv
 #include <dlib/opencv.h>
 #include <opencv2/highgui/highgui.hpp>
+//ros
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+#include <sstream>
 
 using namespace dlib;
 using namespace std;
@@ -99,6 +104,12 @@ void mouseHandler(int event, int x, int y, int flags, void* param)
 
 int main(int argc, char** argv)
 {
+    //init ros
+    ros::init(argc, argv, "tracker");
+    ros::NodeHandle nodeHandle;
+    ros::Publisher tracker_pub = nodeHandle.advertise<std_msgs::String>("tracker", 1000);
+    //ros::Rate loop_rate(10);  //10hz
+
     cv::VideoCapture cap;
     //read param
     if(argc<2)
@@ -153,7 +164,16 @@ int main(int argc, char** argv)
                 targetCurrentStartPoint = cv::Point(dlibTargetPosition.left(), dlibTargetPosition.top());
                 targetCurrentEndPoint = cv::Point(dlibTargetPosition.right(), dlibTargetPosition.bottom());
                 cv::rectangle(frame, targetCurrentStartPoint, targetCurrentEndPoint, CV_RGB(0, 0, 255), 2, 8, 0);
-                printf("target at:%d %d %d %d\n", targetCurrentStartPoint.x, targetCurrentStartPoint.y, targetCurrentEndPoint.x - targetCurrentStartPoint.x, targetCurrentEndPoint.y - targetCurrentStartPoint.y);
+                //printf("target at:%d %d %d %d\n", targetCurrentStartPoint.x, targetCurrentStartPoint.y, targetCurrentEndPoint.x - targetCurrentStartPoint.x, targetCurrentEndPoint.y - targetCurrentStartPoint.y);
+                //ros pub
+                std_msgs::String msg;
+                std::stringstream ss;
+                ss << "" << targetCurrentStartPoint.x << " " << targetCurrentStartPoint.y << " " << targetCurrentEndPoint.x - targetCurrentStartPoint.x << " " << targetCurrentEndPoint.y - targetCurrentStartPoint.y;
+                msg.data = ss.str();
+                ROS_INFO("%s", msg.data.c_str());
+                tracker_pub.publish(msg);
+                ros::spinOnce();
+                //loop_rate.sleep();
             }
             cv::imshow(mainWindowString, frame);
         }
