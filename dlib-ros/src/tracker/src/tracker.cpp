@@ -2,6 +2,7 @@
 *2015.9.3 use 4 space instead tab
 *         add reSelect target feature
 *2015.9.4 add ros support
+*2015.9.6 add moving average filter
 */
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
@@ -35,9 +36,49 @@ cv::Point targetCurrentStartPoint;
 cv::Point targetCurrentEndPoint;
 cv::Point reSelectTartgetCenterPoint;
 correlation_tracker tracker;
+const int movingAverageSize = 5;
+cv::Point targetCurrentStartPoints[movingAverageSize];
+cv::Point targetCurrentEndPoints[movingAverageSize];
+
+void initMovingAverage()
+{
+    for(int i = 0; i < movingAverageSize; i++)
+    {
+        targetCurrentStartPoints[i] = cv::Point(0, 0);
+        targetCurrentEndPoints[i] = cv::Point(0, 0);
+    }
+}
+
+void updateMovingAverage(cv::Point startPoint, cv::Point endPoint)
+{
+    //move forward
+    for(int i = 0; i < movingAverageSize - 1; i++)
+    {
+        targetCurrentStartPoints[i] = targetCurrentStartPoints[i + 1];
+        targetCurrentEndPoints[i] = targetCurrentEndPoints[i + 1];
+    }
+    //add new value at end
+    targetCurrentStartPoints[movingAverageSize - 1] = startPoint;
+    targetCurrentEndPoints[movingAverageSize - 1] = endPoint;
+    //calculate average
+    int startXSum = 0;
+    int startYSum = 0;
+    int endXSum = 0;
+    int endYSum = 0;
+    for(int i = 0; i < movingAverageSize; i++)
+    {
+        startXSum += targetCurrentStartPoints[i].x;
+        startYSum += targetCurrentStartPoints[i].y;
+        endXSum += targetCurrentEndPoints[i].x;
+        endYSum += targetCurrentEndPoints[i].y;
+    }
+    targetCurrentStartPoint = cv::Point(startXSum/movingAverageSize, startYSum/movingAverageSize);
+    targetCurrentEndPoint = cv::Point(endXSum/movingAverageSize, endYSum/movingAverageSize);
+}
 
 void swapTargetInitPosition()
 {
+    //in case start big than end
     if((targetInitStartPoint.x > targetInitEndPoint.x) || (targetInitStartPoint.y > targetInitEndPoint.y))
     {
         cv::Point temp = targetInitStartPoint;
@@ -124,6 +165,7 @@ int main(int argc, char** argv)
     cv::namedWindow(mainWindowString, cv::WINDOW_AUTOSIZE);
     cv::moveWindow(mainWindowString, 100, 60);
     cv::setMouseCallback(mainWindowString, mouseHandler, 0);
+    initMovingAverage();
     if(!cap.isOpened())
     {
         printf("error:VideoCapture open failed\n");
@@ -163,6 +205,7 @@ int main(int argc, char** argv)
                 drectangle dlibTargetPosition = tracker.get_position();
                 targetCurrentStartPoint = cv::Point(dlibTargetPosition.left(), dlibTargetPosition.top());
                 targetCurrentEndPoint = cv::Point(dlibTargetPosition.right(), dlibTargetPosition.bottom());
+                updateMovingAverage(targetCurrentStartPoint, targetCurrentEndPoint);
                 cv::rectangle(frame, targetCurrentStartPoint, targetCurrentEndPoint, CV_RGB(0, 0, 255), 2, 8, 0);
                 //printf("target at:%d %d %d %d\n", targetCurrentStartPoint.x, targetCurrentStartPoint.y, targetCurrentEndPoint.x - targetCurrentStartPoint.x, targetCurrentEndPoint.y - targetCurrentStartPoint.y);
                 //ros pub
